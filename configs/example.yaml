@@ -1,0 +1,53 @@
+# Example configuration.  Every technology constant is a placeholder: replace the values below with those of your
+# process, taken from the technology files you are licensed to use.  The numbers in this file describe an invented
+# four-metal stack and exist only so that the tests run.
+# Lengths in micrometres, capacitance in fF, resistance in ohm.
+
+technology:
+  # Conductor (routing) and via layers, bottom to top.  z_bottom / thickness give the vertical extent of the layer;
+  # eps_r is the relative permittivity of the dielectric at that height; sheet_res is ohm per square (routing layers);
+  # via_res is ohm per cut (via layers); fringe_init is the initial sidewall share of the ground base (0..1).
+  layers:
+    - {name: MA, kind: routing, z_bottom: 0.10, thickness: 0.05, eps_r: 3.0, sheet_res: 1.0, min_width: 0.05, fringe_init: 0.05}
+    - {name: VA, kind: via,     z_bottom: 0.15, thickness: 0.05, eps_r: 3.0, via_res: 10.0}
+    - {name: MB, kind: routing, z_bottom: 0.20, thickness: 0.05, eps_r: 3.0, sheet_res: 1.0, min_width: 0.05, fringe_init: 0.10}
+    - {name: VB, kind: via,     z_bottom: 0.25, thickness: 0.05, eps_r: 3.0, via_res: 10.0}
+    - {name: MC, kind: routing, z_bottom: 0.30, thickness: 0.10, eps_r: 3.0, sheet_res: 0.5, min_width: 0.10, fringe_init: 0.15}
+    - {name: VC, kind: via,     z_bottom: 0.40, thickness: 0.10, eps_r: 3.0, via_res: 5.0}
+    - {name: MD, kind: routing, z_bottom: 0.50, thickness: 0.20, eps_r: 3.5, sheet_res: 0.1, min_width: 0.20, fringe_init: 0.20}
+  default_eps_r: 3.0            # permittivity outside every listed layer
+  power_net_names: [VDD, VSS]   # power wires: grounded conductors on which part of the ground capacitance ends
+
+window:                          # cuboid windows read by the extractor
+  context_radius: 4.0            # neighbours within this surface distance enter the inverse-distance average
+  cutoff_radius: 4.0             # pairs within this surface distance get a coupling base
+  xy_scale: 2.5                  # coordinate scale of the encoder input
+  wide_width: 2.0                # in a window without power-wire cuboids, neighbours wider than this act as power wires
+  far_field_half_size: 2.0       # half size of the box sampled for far-field points in pretraining
+
+model:
+  model_dim: 256
+  modifier_limit: 3.0            # bounded multiplicative correction: exp(limit * tanh(logit / limit))
+  residual_scale: 0.01           # scale of the nonnegative additive coupling term (fF)
+
+training:
+  lr: 5.0e-5
+  steps: 12000
+  layer_scale_lr_mult: 50.0      # learning-rate multiplier of the per-layer scales and the ground-head input layers
+  pair_scale_lr_mult: 1.0        # learning-rate multiplier of the layer-pair coupling scale (times the coupling head's 3x)
+  cap_floor: 0.005               # targets below this (fF) are treated as zero targets
+
+correction:                      # final correction (gradient-boosted trees)
+  # geometry windows of the features; choose them relative to the minimum pitch of your routing layers
+  gap_bins: [0.0, 0.05, 0.10, 0.50]  # lateral gap bins of the plate proxies
+  vertical_window: 0.20              # vertical gap below which a conductor above / below counts
+  near_gap: 0.10                     # lateral gap that counts a neighbour as near
+  gap_cap: 9.0                       # cap of the closest-gap feature of a net pair
+  coupling_threshold: 1.0e-4         # couplings below this (fF) are moved to ground at their node
+
+rc_network:
+  max_segment_length: 10.0       # a wire piece longer than this is split
+  width_bias: 0.002              # drawn width minus this = electrical width of a wire segment
+  resistance_scale: 1.0          # the one constant fit on training designs (multiplies every resistance)
+  dbu: 2000                      # database units per micrometre (node snapping grid)
+  pin_snap_radius: 2.0           # a pin without a node inside its shape connects to the nearest node within this distance
